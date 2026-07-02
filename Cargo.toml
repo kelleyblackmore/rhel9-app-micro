@@ -1,0 +1,67 @@
+[package]
+name = "secureledger"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.75"
+description = "SecureLedger - a secure task & audit REST API"
+license = "MIT"
+
+[[bin]]
+name = "app"
+path = "src/main.rs"
+
+[dependencies]
+# Async runtime
+tokio = { version = "1.38", features = ["rt-multi-thread", "macros", "signal", "sync", "time"] }
+
+# Web framework
+axum = { version = "0.7.5", features = ["json", "macros"] }
+tower = { version = "0.4.13", features = ["util"] }
+tower-http = { version = "0.5.2", features = ["trace"] }
+
+# Serialization
+serde = { version = "1.0.203", features = ["derive"] }
+serde_json = "1.0.117"
+
+# JWT auth
+jsonwebtoken = "9.3.0"
+
+# Password hashing (pure Rust, no C toolchain)
+argon2 = "0.5.3"
+password-hash = "0.5.0"
+
+# Persistence - rusqlite bundled compiles sqlite in (static musl friendly)
+rusqlite = { version = "0.31.0", features = ["bundled"] }
+r2d2 = "0.8.10"
+r2d2_sqlite = "0.24.0"
+
+# Rate limiting (pure Rust in-memory token bucket)
+governor = "0.6.3"
+nonzero_ext = "0.3.0"
+
+# Observability
+metrics = "0.23.0"
+metrics-exporter-prometheus = { version = "0.15.3", default-features = false }
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter", "json", "fmt"] }
+
+# OpenAPI
+utoipa = { version = "4.2.3", features = ["axum_extras", "chrono"] }
+utoipa-swagger-ui = { version = "7.1.0", features = ["axum"] }
+
+# Time
+chrono = { version = "0.4.38", features = ["serde"] }
+
+# IDs & misc
+uuid = { version = "1.8.0", features = ["v4", "serde"] }
+
+[dev-dependencies]
+tower = { version = "0.4.13", features = ["util"] }
+http-body-util = "0.1.1"
+
+[profile.release]
+strip = true
+lto = true
+opt-level = "z"
+panic = "abort"
+codegen-units = 1
