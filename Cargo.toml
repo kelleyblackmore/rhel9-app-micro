@@ -45,9 +45,10 @@ metrics-exporter-prometheus = { version = "0.15.3", default-features = false }
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3.18", features = ["env-filter", "json", "fmt"] }
 
-# OpenAPI
+# OpenAPI (spec only; the Swagger UI bundle is intentionally omitted because
+# utoipa-swagger-ui downloads/extracts assets at build time, which breaks
+# reproducible/offline musl builds. The generated spec is served as JSON.)
 utoipa = { version = "4.2.3", features = ["axum_extras", "chrono"] }
-utoipa-swagger-ui = { version = "7.1.0", features = ["axum"] }
 
 # Time
 chrono = { version = "0.4.38", features = ["serde"] }

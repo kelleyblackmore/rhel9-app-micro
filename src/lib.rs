@@ -10,11 +10,11 @@ pub mod openapi;
 pub mod ratelimit;
 pub mod state;
 
+use axum::response::Redirect;
 use axum::routing::get;
-use axum::{middleware, Router};
+use axum::{middleware, Json, Router};
 use metrics_exporter_prometheus::PrometheusHandle;
 use utoipa::OpenApi;
-use utoipa_swagger_ui::SwaggerUi;
 
 use crate::openapi::ApiDoc;
 use crate::state::AppState;
@@ -45,7 +45,18 @@ pub fn build_router(state: AppState, metrics_handle: PrometheusHandle) -> Router
     let metrics_handle_for_route = metrics_handle.clone();
 
     Router::new()
-        .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))
+        // OpenAPI spec as JSON (the Swagger UI bundle is intentionally omitted
+        // for reproducible/offline musl builds). The spec is generated once at
+        // startup since ApiDoc::openapi() is deterministic.
+        .route(
+            "/api-docs/openapi.json",
+            get(|| async { Json(ApiDoc::openapi()) }),
+        )
+        // Keep /swagger-ui as a convenience redirect to the raw spec.
+        .route(
+            "/swagger-ui",
+            get(|| async { Redirect::temporary("/api-docs/openapi.json") }),
+        )
         .route("/healthz", get(handlers::healthz))
         .route("/readyz", get(handlers::readyz))
         .route(
