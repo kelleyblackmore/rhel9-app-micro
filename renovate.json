@@ -1,0 +1,21 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":dependencyDashboard",
+    ":semanticCommits"
+  ],
+  "description": "Weekly updates for Cargo crates, the micro base image digest, and GitHub Actions.",
+  "timezone": "Etc/UTC",
+  "schedule": ["before 6am on monday"],
+  "labels": ["dependencies"],
+  "pinDigests": true,
+  "separateMinorPatch": true,
+  "packageRules": [
+    { "matchManagers": ["cargo"], "groupName": "cargo crates" },
+    { "matchDatasources": ["docker"], "groupName": "base image", "addLabels": ["container"], "automerge": false },
+    { "matchManagers": ["github-actions"], "groupName": "github actions", "addLabels": ["ci"] }
+  ],
+  "vulnerabilityAlerts": { "labels": ["security"], "schedule": ["at any time"] },
+  "osvVulnerabilityAlerts": true
+}
