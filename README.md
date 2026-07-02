@@ -37,6 +37,7 @@ docker run --rm -p 8080:8080 secureledger-micro
 |---|---|
 | [`build.yml`](.github/workflows/build.yml) | `cargo test` (+ fmt/clippy) |
 | [`cve-scan.yml`](.github/workflows/cve-scan.yml) | Trivy on the app image; **gate: 0 fixable CVEs**; total (incl. unfixed) reported |
+| [`stig-dast-scan.yml`](.github/workflows/stig-dast-scan.yml) | **DISA API SRG** + **DISA ASD STIG** black-box scans against the running app (`stig-api-scanner` + `stig-asd-scanner`); SARIF → Security tab, CRITICAL-gated |
 
 > STIG is **not** run here, matching the micro base: DISA STIG content targets a
 > full OS and cannot be evaluated inside a distroless image with no shell/rpm.
