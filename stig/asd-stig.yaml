@@ -1,0 +1,53 @@
+# DISA Application Security & Development (ASD) STIG V6R4 scan config for SecureLedger.
+# Consumed by kelleyblackmore/stig-asd-scanner. Target is the app started in CI.
+target:
+  base_url: "http://localhost:8080"
+  timeout_seconds: 20
+  verify_tls: false          # app speaks HTTP in CI; TLS is terminated at the ingress in prod
+  endpoints:
+    - path: /healthz
+      method: GET
+      auth_required: false
+      check_csrf: false
+    - path: /api/auth/login
+      method: POST
+      auth_required: false
+      check_csrf: false
+    - path: /api/tasks
+      method: GET
+      auth_required: true
+      check_csrf: true
+    - path: /api/tasks
+      method: POST
+      auth_required: true
+      check_csrf: true
+    - path: /api/audit
+      method: GET
+      auth_required: true
+      check_csrf: false
+
+auth:
+  type: bearer
+  bearer_token: "${TEST_BEARER_TOKEN}"   # injected by the workflow after /api/auth/login
+
+checks:
+  transport: true
+  headers: true
+  session: true
+  auth: true
+  input_validation: true
+  csrf: true
+  error_handling: true
+  dos: true
+
+dos:
+  probe_count: 0      # >0 enables the active 429 probe
+
+report:
+  format: sarif
+  include_passed: false
+  verbose: false
+
+pipeline:
+  fail_severity: critical    # HIGH/MEDIUM surface in SARIF; only CRITICAL fails CI
+  exit_code_on_fail: 2

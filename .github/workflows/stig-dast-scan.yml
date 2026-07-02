@@ -1,0 +1,105 @@
+name: STIG DAST (API SRG + ASD)
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: ['**']
+  schedule:
+    - cron: '0 5 * * 1'   # weekly
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write   # upload SARIF to the Security tab
+
+jobs:
+  dast:
+    name: Run DISA API SRG + ASD STIG scanners against the running app
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build app image
+        run: docker build -f Containerfile -t app:dast .
+
+      - name: Start app + wait for health
+        run: |
+          docker run -d --name app -p 8080:8080 app:dast
+          for i in $(seq 1 90); do
+            curl -fsS http://localhost:8080/healthz >/dev/null 2>&1 && { echo "healthy"; break; }
+            sleep 2
+          done
+          curl -fsS http://localhost:8080/healthz || { echo "app not healthy"; docker logs app; exit 1; }
+
+      - name: Obtain admin JWT
+        run: |
+          TOKEN=""
+          for i in $(seq 1 10); do
+            TOKEN=$(curl -fsS -X POST http://localhost:8080/api/auth/login \
+              -H 'Content-Type: application/json' \
+              -d '{"username":"admin","password":"admin123"}' | jq -r '.token // empty')
+            [ -n "$TOKEN" ] && break; sleep 2
+          done
+          if [ -z "$TOKEN" ]; then echo "login failed"; docker logs app; exit 1; fi
+          echo "::add-mask::$TOKEN"
+          echo "API_BEARER_TOKEN=$TOKEN"  >> "$GITHUB_ENV"
+          echo "TEST_BEARER_TOKEN=$TOKEN" >> "$GITHUB_ENV"
+
+      - name: API SRG scan
+        id: api
+        continue-on-error: true
+        uses: kelleyblackmore/stig-api-scanner@master
+        with:
+          config: stig/api-srg.yaml
+          output: stig-api-srg.sarif
+          fail-severity: critical
+
+      - name: ASD STIG scan
+        id: asd
+        continue-on-error: true
+        uses: kelleyblackmore/stig-asd-scanner@master
+        with:
+          config: stig/asd-stig.yaml
+          output: stig-asd-stig.sarif
+          fail-severity: critical
+
+      - name: Upload API SRG SARIF
+        if: always() && hashFiles('stig-api-srg.sarif') != ''
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: stig-api-srg.sarif
+          category: stig-api-srg
+
+      - name: Upload ASD STIG SARIF
+        if: always() && hashFiles('stig-asd-stig.sarif') != ''
+        continue-on-error: true
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: stig-asd-stig.sarif
+          category: stig-asd-stig
+
+      - name: Archive SARIF reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stig-dast-sarif
+          path: stig-*.sarif
+          if-no-files-found: warn
+
+      - name: App logs
+        if: always()
+        run: docker logs app || true
+
+      - name: Gate on CRITICAL findings
+        if: always()
+        run: |
+          echo "API SRG scanner outcome: ${{ steps.api.outcome }}"
+          echo "ASD STIG scanner outcome: ${{ steps.asd.outcome }}"
+          if [ "${{ steps.api.outcome }}" = "failure" ] || [ "${{ steps.asd.outcome }}" = "failure" ]; then
+            echo "::error::A STIG DAST scanner exited non-zero (CRITICAL finding or scan error). See the Security tab / artifact."
+            exit 1
+          fi
+          echo "No CRITICAL DAST findings (HIGH/MEDIUM, if any, are in the Security tab)."

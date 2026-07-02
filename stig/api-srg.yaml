@@ -1,0 +1,47 @@
+# DISA API Security Requirements Guide (SRG) V1R0.1 scan config for SecureLedger.
+# Consumed by kelleyblackmore/stig-api-scanner. Target is the app started in CI.
+target:
+  base_url: "http://localhost:8080"
+  timeout_seconds: 20
+  verify_tls: false          # app speaks HTTP in CI; TLS is terminated at the ingress in prod
+  extra_headers:
+    Accept: "application/json"
+
+auth:
+  type: bearer
+  bearer_token: "${API_BEARER_TOKEN}"   # injected by the workflow after /api/auth/login
+
+endpoints:
+  - path: "/healthz"
+    methods: ["GET"]
+    auth_required: false
+    tags: ["health", "public"]
+  - path: "/readyz"
+    methods: ["GET"]
+    auth_required: false
+    tags: ["health", "public"]
+  - path: "/api/auth/login"
+    methods: ["POST"]
+    auth_required: false
+    tags: ["auth", "public"]
+  - path: "/api/tasks"
+    methods: ["GET", "POST"]
+    auth_required: true
+    tags: ["tasks", "crud"]
+  - path: "/api/audit"
+    methods: ["GET"]
+    auth_required: true
+    tags: ["audit", "admin", "privileged"]
+
+checks:
+  transport: true
+  cors: true
+  auth: true
+  tokens: true
+  rate_limiting: true
+  input_validation: true
+  error_handling: true
+  cache: true
+  headers: true
+  allowed_origins: []          # empty => flag any ACAO response
+  rate_limit_probe_count: 0    # >0 sends N rapid requests to probe for HTTP 429
